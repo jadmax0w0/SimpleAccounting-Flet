@@ -76,15 +76,22 @@ class Book:
 
         self.items.remove(target_item)
 
-    def sort_items(self, key: str = "time", descending: bool = True):
-        def key_func(item: AccountItem):
-            if key == "amount":
-                return item.amount
-            else:
-                return item.datetime
-            
-        self.items = sorted(self.items, key=key_func, reverse=descending)
+    def sort_items(self, key, descending: bool = True):
+        self.items = sorted(self.items, key=key, reverse=descending)
 
+    def select_items():
+        # TODO
+        pass
+
+
+class BookItemSortKeys:
+    @staticmethod
+    def Time(item: AccountItem):
+        return item.datetime
+    
+    @staticmethod
+    def Amount(item: AccountItem):
+        return item.amount
 
 class BookStats:
     def __init__(self, activated: bool = True):
