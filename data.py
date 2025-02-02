@@ -30,6 +30,14 @@ class AccountItem:
                     break
         else:
             raise ValueError(f"Given value {value} ({type(value).__name__}) is not a valid type value")
+        
+    @property
+    def datetime_info(self):
+        return f"{self.datetime.year} 年 {self.datetime.month} 月 {self.datetime.day} 日 {self.datetime.hour:02}:{self.datetime.minute:02}"
+    
+    @property
+    def amount_info(self):
+        return ("+" if self.amount > 0 else "") + f"{self.amount:.2f}"
 
 
 class Book:
@@ -115,7 +123,7 @@ class Book:
         ```
         """
         selected = [] if key is not None else self.items
-        if len(selected <= 0):
+        if len(selected) <= 0:
             for item in self.items:
                 if key(item, **kwargs):
                     selected.append(item)
@@ -272,9 +280,13 @@ class AccountingApp:
     def __init__(self):
         self.books: list[tuple[Book, BookStats]] = []
         self.book_id = -1
+        # TODO: saving and loading data
 
     @property
     def current_book(self):
+        if len(self.books) <= 0:  # create a new book if there's no book while looking for current book
+            self.create_book("我的账本")
+            self.book_id = 0
         assert self.book_id >= 0 and self.book_id < len(self.books)
         book, stats = self.books[self.book_id]
         assert stats.activated is True, f"Book with id {self.book_id} is not activated"
@@ -336,14 +348,26 @@ class AccountingApp:
     def delete_item(self, target_id: int, **kwargs):
         self.current_book.delete_item(target_id, **kwargs)
 
-    def inout_daily(self, year: int = None, month: int = None, day: int = None):
-        return self.current_book.addup(key=BookItemSelectKeys.SpecificDay, year=year, month=month, day=day)
+    def inout_daily(self, year: int = None, month: int = None, day: int = None, to_info: bool = False):
+        amount = self.current_book.addup(key=BookItemSelectKeys.SpecificDay, year=year, month=month, day=day)
+        if not to_info:
+            return amount
+        else:
+            return ("+" if amount > 0 else "") + f"{amount:.2f}"
     
-    def inout_monthly(self, year: int = None, month: int = None):
-        return self.current_book.addup(key=BookItemSelectKeys.SpecificMonth, year=year, month=month)
+    def inout_monthly(self, year: int = None, month: int = None, to_info: bool = False):
+        amount = self.current_book.addup(key=BookItemSelectKeys.SpecificMonth, year=year, month=month)
+        if not to_info:
+            return amount
+        else:
+            return ("+" if amount > 0 else "") + f"{amount:.2f}"
     
-    def inout_yearly(self, year: int = None):
-        return self.current_book.addup(key=BookItemSelectKeys.SpecificYear, year=year)
+    def inout_yearly(self, year: int = None, to_info: bool = False):
+        amount = self.current_book.addup(key=BookItemSelectKeys.SpecificYear, year=year)
+        if not to_info:
+            return amount
+        else:
+            return ("+" if amount > 0 else "") + f"{amount:.2f}"
 
 
 if __name__ == "__main__":
