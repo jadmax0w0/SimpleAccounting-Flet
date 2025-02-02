@@ -4,7 +4,8 @@ import utils as U
 
 
 class AccountItem:
-    def __init__(self, type: U.AccountItemType, name: str, amount: float, time: datetime = None):
+    def __init__(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime = None):
+        self.__type = None
         self.type = type
         self.name = name
         self.datetime = datetime.now() if time is None else time
@@ -12,6 +13,22 @@ class AccountItem:
 
     def __str__(self):
         return f"{self.type.name} {self.name} {self.datetime} {self.amount}"
+    
+    @property
+    def type(self):
+        return self.__type
+    
+    @type.setter
+    def type(self, value):
+        if isinstance(value, U.AccountItemType):
+            self.__type = value
+        elif isinstance(value, str):
+            for t in U.AccountItemTypes.CustomTypes:
+                if t == value:
+                    self.__type = t
+                    break
+        else:
+            raise ValueError(f"Given value {value} ({type(value).__name__}) is not a valid type value")
 
 
 class Book:
@@ -30,7 +47,7 @@ class Book:
             result += item.amount
         return result
     
-    def create_item(self, type: U.AccountItemType, name: str, amount: float, time: datetime = None, **kwargs):
+    def create_item(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime = None, **kwargs):
         item = None
         if "item" in kwargs:
             item = kwargs["item"]
@@ -219,6 +236,7 @@ if __name__ == "__main__":
     app = AccountingApp()
 
     # test: book management
+    print("----------")
     app.create_book(book=b1)
     app.create_book(book=b2)
     app.switch_book(1)
@@ -235,7 +253,16 @@ if __name__ == "__main__":
     app.current_book = "a"
     print(str(app.current_book), app.book_id)
 
+    # test: crate and edit item
+    print("----------")
+    b2.create_item("Books", "haha", 114)
+    b2.create_item(U.AccountItemTypes.Clothes, "lol", 514)
+    U.print_list(b2.items)
+    b2.edit_item(target_id=0, to_type="Games", to_time=U.random_datetime())
+    U.print_list(b2.items)
+
     # test: select items
+    print("----------")
     import random
     for _ in range(50):
         b1.create_item(

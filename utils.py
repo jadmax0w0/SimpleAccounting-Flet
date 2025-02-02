@@ -31,7 +31,7 @@ class AccountItemType:
         self.namealt = namealt
 
     def __str__(self):
-        return str((self.icon, self.name, *self.namealt))
+        return "AccountItemType: " + str((self.icon, self.name, *self.namealt))
     
     def __eq__(self, value):
         if isinstance(value, AccountItemType):
