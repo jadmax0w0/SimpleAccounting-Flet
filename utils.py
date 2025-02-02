@@ -1,4 +1,6 @@
 from enum import IntEnum, Enum
+import random
+from datetime import datetime
 
 
 def print_list(l: list, depth: int = 0):
@@ -14,6 +16,14 @@ def print_list(l: list, depth: int = 0):
     print(f"{prefix}]")
 
 
+def random_datetime(year = True, month = True, day = True, hour = True):
+    y = random.randint(1000, 3000) if year else 2025
+    m = random.randint(1, 12) if month else 1
+    d = random.randint(1, 28) if day else 1
+    h = random.randint(0, 23) if hour else 0
+    return datetime(year=y, month=m, day=d, hour=h)
+
+
 class AccountItemType:
     def __init__(self, icon: str, name: str, *namealt: str):
         self.icon = icon
@@ -22,6 +32,14 @@ class AccountItemType:
 
     def __str__(self):
         return str((self.icon, self.name, *self.namealt))
+    
+    def __eq__(self, value):
+        if isinstance(value, AccountItemType):
+            return self.icon == value.icon and self.name == value.name and self.namealt == self.namealt
+        elif isinstance(value, str):
+            return self.name == value or value in self.namealt
+        else:
+            return False
 
 
 class AccountItemTypes:

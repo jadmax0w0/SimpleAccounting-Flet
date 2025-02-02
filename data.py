@@ -77,11 +77,30 @@ class Book:
         self.items.remove(target_item)
 
     def sort_items(self, key, descending: bool = True):
+        """
+        Usage:
+        ```
+        sort_items(key=BookItemSortKeys.Time)
+        ```
+        """
         self.items = sorted(self.items, key=key, reverse=descending)
 
-    def select_items():
-        # TODO
-        pass
+    def select_items(self, key, sort_key = None, sort_descending: bool = True, **kwargs) -> list[AccountItem]:
+        """
+        Usage:
+        ```
+        sort_items(key=BookItemSelectKeys.AmountRange, sort_key=BookItemSortKeys.Amount, start=114, end=514)
+        sort_items(key=BookItemSelectKeys.Type, type="Books")
+        ```
+        """
+        selected = []
+        for item in self.items:
+            if key(item, **kwargs):
+                selected.append(item)
+        
+        if sort_key is not None:
+            selected = sorted(selected, key=sort_key, reverse=sort_descending)
+        return selected
 
 
 class BookItemSortKeys:
@@ -92,6 +111,61 @@ class BookItemSortKeys:
     @staticmethod
     def Amount(item: AccountItem):
         return item.amount
+    
+
+class BookItemSelectKeys:
+    def Type(item: AccountItem, **kwargs):
+        """
+        是否为某个类型的账目\n
+        kwargs:\n
+        - `type: str | AccountItemType` (类型名 | 类型)
+        """
+        type = None
+        if "type" in kwargs:
+            type = kwargs["type"]
+
+        if type is None:
+            return True
+        return item.type == type
+    
+    def TimeRange(item: AccountItem, **kwargs):
+        """
+        是否为某段时间内的账目\n
+        kwargs:\n
+        - `start: datetime`
+        - `end: datetime`
+        """
+        from_time, to_time = None, None
+        if "start" in kwargs:
+            from_time = kwargs["start"]
+        if "end" in kwargs:
+            to_time = kwargs["end"]
+
+        if from_time is not None and item.datetime < from_time:
+            return False
+        if to_time is not None and item.datetime > to_time:
+            return False
+        return True
+    
+    def AmountRange(item: AccountItem, **kwargs):
+        """
+        是否为某个花费范围内的账目\n
+        kwargs:\n
+        - `start: float`
+        - `end: float`
+        """
+        from_amount, to_amount = None, None
+        if "start" in kwargs:
+            from_amount = kwargs["start"]
+        if "end" in kwargs:
+            to_amount = kwargs["end"]
+
+        if from_amount is not None and item.amount < from_amount:
+            return False
+        if to_amount is not None and item.amount > to_amount:
+            return False
+        return True
+
 
 class BookStats:
     def __init__(self, activated: bool = True):
@@ -144,6 +218,7 @@ if __name__ == "__main__":
     b4 = Book("c")
     app = AccountingApp()
 
+    # test: book management
     app.create_book(book=b1)
     app.create_book(book=b2)
     app.switch_book(1)
@@ -160,4 +235,21 @@ if __name__ == "__main__":
     app.current_book = "a"
     print(str(app.current_book), app.book_id)
 
-    b1.create_item(U.AccountItemTypes.Books, "book1", 14.5)
+    # test: select items
+    import random
+    for _ in range(50):
+        b1.create_item(
+            type=random.choice(U.AccountItemTypes.CustomTypes),
+            name="",
+            amount=random.randrange(10, 200),
+            time=U.random_datetime(year=False),
+        )
+    U.print_list(b1.items)
+    print("\n", "select type books no sort")
+    U.print_list(b1.select_items(key=BookItemSelectKeys.Type, type="Books"))
+    print("\n", "select type clothes")
+    U.print_list(b1.select_items(key=BookItemSelectKeys.Type, sort_key=BookItemSortKeys.Time, type="Clothes"))
+    print("\n", "select amount from 11 to 45")
+    U.print_list(b1.select_items(key=BookItemSelectKeys.AmountRange, sort_key=BookItemSortKeys.Amount, start=11, end=45))
+    print("\n", "select datetime from 2025 feb to apr")
+    U.print_list(b1.select_items(key=BookItemSelectKeys.TimeRange, sort_key=BookItemSortKeys.Time, start=datetime(2025, 1, 1), end=datetime(2025, 4, 1)))
