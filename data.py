@@ -1,6 +1,7 @@
 import datetime as dt
-from datetime import datetime
+from datetime import datetime, timedelta
 import utils as U
+from typing import Callable
 
 
 class AccountItem:
@@ -40,7 +41,7 @@ class Book:
     def __str__(self):
         return f"Book \"{self.name}\" ({self.create_time}) with {len(self.items)} items"
 
-    def addup(self, key = None, **kwargs) -> float:
+    def addup(self, key: Callable[..., bool] = None, **kwargs) -> float:
         items = self.items
         if key is not None:
             items = self.select_items(key, **kwargs)
@@ -96,7 +97,7 @@ class Book:
 
         self.items.remove(target_item)
 
-    def sort_items(self, key, descending: bool = True):
+    def sort_items(self, key: Callable, descending: bool = True):
         """
         Usage:
         ```
@@ -105,7 +106,7 @@ class Book:
         """
         self.items = sorted(self.items, key=key, reverse=descending)
 
-    def select_items(self, key, sort_key = None, sort_descending: bool = True, **kwargs) -> list[AccountItem]:
+    def select_items(self, key: Callable[..., bool] = None, sort_key: Callable = None, sort_descending: bool = True, **kwargs) -> list[AccountItem]:
         """
         Usage:
         ```
@@ -113,10 +114,11 @@ class Book:
         sort_items(key=BookItemSelectKeys.Type, type="Books")
         ```
         """
-        selected = []
-        for item in self.items:
-            if key(item, **kwargs):
-                selected.append(item)
+        selected = [] if key is not None else self.items
+        if len(selected <= 0):
+            for item in self.items:
+                if key(item, **kwargs):
+                    selected.append(item)
         
         if sort_key is not None:
             selected = sorted(selected, key=sort_key, reverse=sort_descending)
@@ -134,6 +136,7 @@ class BookItemSortKeys:
     
 
 class BookItemSelectKeys:
+    @staticmethod
     def Type(item: AccountItem, **kwargs):
         """
         是否为某个类型的账目\n
@@ -148,6 +151,7 @@ class BookItemSelectKeys:
             return True
         return item.type == type
     
+    @staticmethod
     def TimeRange(item: AccountItem, **kwargs):
         """
         是否为某段时间内的账目\n
@@ -160,13 +164,83 @@ class BookItemSelectKeys:
             from_time = kwargs["start"]
         if "end" in kwargs:
             to_time = kwargs["end"]
+        
+        include_start, include_end = True, True
+        if "include_start" in kwargs:
+            include_start = kwargs["include_start"]
+        if "include_end" in kwargs:
+            include_end = kwargs["include_end"]
 
-        if from_time is not None and item.datetime < from_time:
+        before_start = from_time is not None and ((item.datetime < from_time) if include_start else (item.datetime <= from_time))
+        after_end = to_time is not None and ((item.datetime > to_time) if include_end else (item.datetime >= to_time))
+
+        if before_start:
             return False
-        if to_time is not None and item.datetime > to_time:
+        if after_end:
             return False
         return True
     
+    @staticmethod
+    def SpecificYear(item: AccountItem, **kwargs):
+        """
+        是否为某年内的账目\n
+        kwargs:\n
+        - `year: int | None`
+        """
+        year = datetime.now().year
+        if "year" in kwargs:
+            year = kwargs["year"] if kwargs["year"] is not None else year
+        
+        return BookItemSelectKeys.TimeRange(item, start=datetime(year, 1, 1), end=datetime(year + 1, 1, 1), include_end=False)
+    
+    @staticmethod
+    def SpecificMonth(item: AccountItem, **kwargs):
+        """
+        是否为某月内的账目\n
+        kwargs:\n
+        - `year: int | None`
+        - `month: int | None`
+        """
+        year1 = datetime.now().year
+        month1 = datetime.now().month
+        if "year" in kwargs:
+            year1 = kwargs["year"] if kwargs["year"] is not None else year1
+        if "month" in kwargs:
+            month1 = kwargs["month"] if kwargs["month"] is not None else month1
+
+        year2 = year1
+        month2 = month1 + 1
+        if month2 >= 13:
+            year2 = year1 + 1
+            month2 = 1
+
+        return BookItemSelectKeys.TimeRange(item, start=datetime(year1, month1, 1), end=datetime(year2, month2, 1), include_end=False)
+    
+    @staticmethod
+    def SpecificDay(item: AccountItem, **kwargs):
+        """
+        是否为某天内的账目\n
+        kwargs:\n
+        - `year: int | None`
+        - `month: int | None`
+        - `day: int | None`
+        """
+        year = datetime.now().year
+        month = datetime.now().month
+        day = datetime.now().day
+        if "year" in kwargs:
+            year = kwargs["year"] if kwargs["year"] is not None else year
+        if "month" in kwargs:
+            month = kwargs["month"] if kwargs["month"] is not None else month
+        if "day" in kwargs:
+            day = kwargs["day"] if kwargs["day"] is not None else day
+        
+        start_time = datetime(year, month, day)
+        end_time = start_time + timedelta(days=1)
+
+        return BookItemSelectKeys.TimeRange(item, start=start_time, end=end_time, include_end=False)
+    
+    @staticmethod
     def AmountRange(item: AccountItem, **kwargs):
         """
         是否为某个花费范围内的账目\n
@@ -230,6 +304,46 @@ class AccountingApp:
     def switch_book(self, id: int):
         assert id >= 0 and id < len(self.books)
         self.book_id = id
+
+    def _setactivate_book(self, name, activate, **kwargs):
+        book = None
+        if "book" in kwargs:
+            book = kwargs["book"]
+        
+        for b, s in self.books:
+            if book is not None and b == book:
+                s.activated = activate
+                break
+            elif b.name == name:
+                s.activated = activate
+                break
+
+    def deactivate_book(self, name: str = None, **kwargs):
+        self._setactivate_book(name, False, **kwargs)
+
+    def activate_book(self, name: str = None, **kwargs):
+        self._setactivate_book(name, True, **kwargs)
+
+    def current_items(self, key: Callable[..., bool] = None, sort_key: Callable = None, sort_descending: bool = True, **kwargs):
+        return self.current_book.select_items(key, sort_key, sort_descending, **kwargs)
+
+    def append_item(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime, **kwargs):
+        self.current_book.create_item(type, name, amount, time, **kwargs)
+
+    def edit_item(self, target_id: int, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
+        self.current_book.edit_item(target_id, to_type, to_name, to_amount, to_time, **kwargs)
+
+    def delete_item(self, target_id: int, **kwargs):
+        self.current_book.delete_item(target_id, **kwargs)
+
+    def inout_daily(self, year: int = None, month: int = None, day: int = None):
+        return self.current_book.addup(key=BookItemSelectKeys.SpecificDay, year=year, month=month, day=day)
+    
+    def inout_monthly(self, year: int = None, month: int = None):
+        return self.current_book.addup(key=BookItemSelectKeys.SpecificMonth, year=year, month=month)
+    
+    def inout_yearly(self, year: int = None):
+        return self.current_book.addup(key=BookItemSelectKeys.SpecificYear, year=year)
 
 
 if __name__ == "__main__":
