@@ -40,10 +40,13 @@ class Book:
     def __str__(self):
         return f"Book \"{self.name}\" ({self.create_time}) with {len(self.items)} items"
 
-    @property
-    def addup(self) -> float:
+    def addup(self, key = None, **kwargs) -> float:
+        items = self.items
+        if key is not None:
+            items = self.select_items(key, **kwargs)
+
         result = 0
-        for item in self.items:
+        for item in items:
             result += item.amount
         return result
     
@@ -253,7 +256,7 @@ if __name__ == "__main__":
     app.current_book = "a"
     print(str(app.current_book), app.book_id)
 
-    # test: crate and edit item
+    # test: create and edit item
     print("----------")
     b2.create_item("Books", "haha", 114)
     b2.create_item(U.AccountItemTypes.Clothes, "lol", 514)
@@ -279,4 +282,10 @@ if __name__ == "__main__":
     print("\n", "select amount from 11 to 45")
     U.print_list(b1.select_items(key=BookItemSelectKeys.AmountRange, sort_key=BookItemSortKeys.Amount, start=11, end=45))
     print("\n", "select datetime from 2025 feb to apr")
-    U.print_list(b1.select_items(key=BookItemSelectKeys.TimeRange, sort_key=BookItemSortKeys.Time, start=datetime(2025, 1, 1), end=datetime(2025, 4, 1)))
+    U.print_list(b1.select_items(key=BookItemSelectKeys.TimeRange, sort_key=BookItemSortKeys.Time, start=datetime(2025, 2, 1), end=datetime(2025, 4, 1)))
+
+    # test: addup
+    print("----------")
+    print(f"all: {b1.addup()}")
+    print(f"books: {b1.addup(key=BookItemSelectKeys.Type, type="Books")}")
+    print(f"feb to apr: {b1.addup(key=BookItemSelectKeys.TimeRange, start=datetime(2025, 2, 1), end=datetime(2025, 4, 1))}")
