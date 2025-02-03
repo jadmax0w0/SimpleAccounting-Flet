@@ -10,6 +10,9 @@ def main(page: Page):
 
     app = data.AccountingApp()
     appui = ui.AccountingAppUI(backend=app)
+    safe = ft.SafeArea(content=appui, expand=True)
+
+    page.add(safe)
 
     import random
     import utils as U
@@ -21,8 +24,8 @@ def main(page: Page):
             time=U.random_datetime(year=False),
         )
 
-    page.add(appui)
-    appui.ui_build()
+    appui.build()
+    appui.update()
 
 
 if __name__ == "__main__":
