@@ -9,10 +9,6 @@ def main(page: Page):
     page.update()
 
     app = data.AccountingApp()
-    appui = ui.AccountingAppUI(backend=app)
-    safe = ft.SafeArea(content=appui, expand=True)
-
-    page.add(safe)
 
     import random
     import utils as U
@@ -23,8 +19,12 @@ def main(page: Page):
             amount=random.randrange(10, 200),
             time=U.random_datetime(year=False),
         )
+    
+    appui = ui.AccountingAppUI(backend=app)  # 在创建 ui 模块前，先把后端初始化、读取之类的工作处理好
+    safe = ft.SafeArea(content=appui, expand=True)
 
-    appui.build()
+    page.add(safe)
+
     appui.update()
 
 

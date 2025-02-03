@@ -348,6 +348,22 @@ class AccountingApp:
     def delete_item(self, target_id: int, **kwargs):
         self.current_book.delete_item(target_id, **kwargs)
 
+    def addup(self, key: Callable[..., bool] = None, to_info: bool = False, **kwargs):
+        if "item_list" in kwargs:
+            item_list: list[AccountItem] = kwargs["item_list"]
+            amount = 0.0
+            for item in item_list:
+                if key(item, **kwargs):
+                    amount += item.amount
+        else:
+            amount = self.current_book.addup(key=key, **kwargs)
+
+        if not to_info:
+            return amount
+        else:
+            return ("+" if amount > 0 else "") + f"{amount:.2f}"
+
+
     def inout_daily(self, year: int = None, month: int = None, day: int = None, to_info: bool = False):
         amount = self.current_book.addup(key=BookItemSelectKeys.SpecificDay, year=year, month=month, day=day)
         if not to_info:
