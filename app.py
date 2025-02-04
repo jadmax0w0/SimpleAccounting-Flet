@@ -17,7 +17,7 @@ def main(page: Page):
             type=random.choice(U.AccountItemTypes.CustomTypes),
             name="",
             amount=random.randrange(10, 200),
-            time=U.random_datetime(year=False),
+            time=U.random_datetime(year=(2024, 2025)),
         )
     
     appui = ui.AccountingAppUI(backend=app)  # 在创建 ui 模块前，先把后端初始化、读取之类的工作处理好

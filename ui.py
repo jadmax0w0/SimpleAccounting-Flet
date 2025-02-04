@@ -169,15 +169,13 @@ class AccountItemList(ft.ListView):
         
         items_of_types = []
         for t in type_list.selected_types:
-            items_of_types.append(set(self.backend.current_items(key=BookItemSelectKeys.Type, type=t)))
+            items_of_types.append(self.backend.current_items(key=BookItemSelectKeys.Type, type=t))
         
         if len(items_of_types) <= 0:
-            self.visible_items = self.backend.current_items()
+            self.visible_items = self.backend.current_items(sort_key=BookItemSortKeys.Time)
         else:
-            self.visible_items = set()
-            for items in items_of_types:
-                self.visible_items = self.visible_items | items
-            self.visible_items = list(self.visible_items)
+            self.visible_items = self.backend.merge_selected_items(False, *items_of_types)
+            self.visible_items = self.backend.sort_items(key=BookItemSortKeys.Time, items_list=self.visible_items)
         
         self.visible_items_ui = self._parse_ui_items(self.visible_items)
 

@@ -17,10 +17,34 @@ def print_list(l: list, depth: int = 0):
 
 
 def random_datetime(year = True, month = True, day = True, hour = True):
-    y = random.randint(1000, 3000) if year else 2025
-    m = random.randint(1, 12) if month else 1
-    d = random.randint(1, 28) if day else 1
-    h = random.randint(0, 23) if hour else 0
+    if isinstance(year, bool) and year is True:
+        y = random.randint(1000, 3000)
+    elif isinstance(year, tuple):
+        y = random.choice(year)
+    elif isinstance(year, int):
+        y = year
+
+    if isinstance(month, bool) and month is True:
+        m = random.randint(1, 12)
+    elif isinstance(month, tuple):
+        m = random.choice(month)
+    elif isinstance(month, int):
+        m = month
+
+    if isinstance(day, bool) and day is True:
+        d = random.randint(1, 28)
+    elif isinstance(day, tuple):
+        d = random.choice(day)
+    elif isinstance(day, int):
+        d = day
+
+    if isinstance(hour, bool) and hour is True:
+        h = random.randint(0, 23)
+    elif isinstance(hour, tuple):
+        h = random.choice(hour)
+    elif isinstance(hour, int):
+        h = hour
+
     return datetime(year=y, month=m, day=d, hour=h)
 
 
