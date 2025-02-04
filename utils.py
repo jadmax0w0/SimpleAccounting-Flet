@@ -4,17 +4,21 @@ from datetime import datetime
 from json import JSONEncoder
 
 
-def print_list(l: list, depth: int = 0):
+def print_list(l: list, mute: bool = False, depth: int = 0):
+    s = ""
     prefix = "".join(["  " for _ in range(depth)])
-
-    if not isinstance(l, list):
-        print(f"{prefix}{str(l)}")
-        return
     
-    print(f"{prefix}[")
-    for elem in l:
-        print_list(elem, depth + 1)
-    print(f"{prefix}]")
+    try:
+        s += f"{prefix}[\n"
+        for elem in l:
+            s += print_list(elem, mute, depth + 1)
+        s += f"{prefix}]\n"
+    except TypeError:
+        s = f"{prefix}{str(l)}\n"
+    finally:
+        if depth == 0 and not mute:
+            print(s)
+        return s
 
 
 def random_datetime(year = True, month = True, day = True, hour = True):

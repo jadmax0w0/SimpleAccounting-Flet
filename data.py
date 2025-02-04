@@ -48,6 +48,10 @@ class AccountItemJson(json.JSONEncoder):
     def default(self, o):
         if not isinstance(o, AccountItem):
             return super().default(o)
+        return AccountItemJson.encode_dict(o)
+
+    @staticmethod
+    def encode_dict(o: AccountItem):
         return {
             "type": o.type.name,
             "name": o.name,
@@ -161,15 +165,20 @@ class BookJson(json.JSONEncoder):
 
     def default(self, o):
         if isinstance(o, Book):
-            items_serialized = []
-            for item in o.items:
-                items_serialized.append(json.loads(json.dumps(item, cls=AccountItemJson)))
-            return {
-                "name": o.name,
-                "create_time": (o.create_time.year, o.create_time.month, o.create_time.day, o.create_time.hour, o.create_time.minute, o.create_time.second, o.create_time.microsecond),
-                "items": items_serialized,
-            }
+            return BookJson.encode_dict(o)
         return super().default(o)
+
+    @staticmethod
+    def encode_dict(o: Book):
+        items_serialized = []
+        for item in o.items:
+            item = AccountItemJson.encode_dict(item)
+            items_serialized.append(item)
+        return {
+            "name": o.name,
+            "create_time": (o.create_time.year, o.create_time.month, o.create_time.day, o.create_time.hour, o.create_time.minute, o.create_time.second, o.create_time.microsecond),
+            "items": items_serialized,
+        }
     
     @staticmethod
     def decode(d):
@@ -321,14 +330,40 @@ class BookStats:
     def __init__(self, activated: bool = True):
         self.activated = activated
 
+    def __str__(self):
+        return f"BookStats: {str(self.__dict__)}"
+
+
+class BookStatsJson(json.JSONEncoder):
+    def __init__(self, *, skipkeys = False, ensure_ascii = True, check_circular = True, allow_nan = True, sort_keys = False, indent = None, separators = None, default = None):
+        super().__init__(skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators, default=default)
+
+    def default(self, o):
+        if isinstance(o, BookStats):
+            return BookStatsJson.encode_dict(o)
+        return super().default(o)
+
+    @staticmethod
+    def encode_dict(o: BookStats):
+        return o.__dict__
+
+    @staticmethod
+    def decode(d):
+        return BookStats(d["activated"])
+
 
 class AccountingApp:
     """记账软件的后端数据部分"""
 
-    def __init__(self):
-        self.books: list[tuple[Book, BookStats]] = []
-        self.book_id = -1
-        # TODO: saving and loading data
+    def __init__(self, books: list[tuple[Book, BookStats]] = [], book_id: int = -1):
+        self.books: list[tuple[Book, BookStats]] = books
+        self.book_id = book_id
+
+    def __str__(self):
+        s = f"------\nAccountingApp:\nBookId: {self.book_id}\nBooks:\n"
+        s += U.print_list(self.books, mute=True)
+        s += "------"
+        return s
 
     @property
     def current_book(self):
@@ -387,7 +422,7 @@ class AccountingApp:
     def current_items(self, key: Callable[..., bool] = None, sort_key: Callable = None, sort_descending: bool = True, **kwargs):
         return self.current_book.select_items(key, sort_key, sort_descending, **kwargs)
 
-    def append_item(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime, **kwargs):
+    def append_item(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime = None, **kwargs):
         self.current_book.create_item(type, name, amount, time, **kwargs)
 
     def edit_item(self, item: AccountItem, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
@@ -451,7 +486,70 @@ class AccountingApp:
         return self.addup(key=BookItemSelectKeys.SpecificYear, to_info=to_info, year=year)
 
 
+class AccountingAppJson(json.JSONEncoder):
+    def __init__(self, *, skipkeys = False, ensure_ascii = True, check_circular = True, allow_nan = True, sort_keys = False, indent = None, separators = None, default = None):
+        super().__init__(skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators, default=default)
+
+    def default(self, o):
+        if isinstance(o, AccountingApp):
+            return AccountingAppJson.encode_dict(o)
+        return super().default(o)
+
+    @staticmethod
+    def encode_dict(o: AccountingApp):
+        books = []
+        for b, s in o.books:
+            b = BookJson.encode_dict(b)
+            s = BookStatsJson.encode_dict(s)
+            books.append((b, s))
+        return {
+            "books": books,
+            "book_id": o.book_id,
+        }
+
+    @staticmethod
+    def decode(d):
+        books = []
+        books_dict = d["books"]
+        for bs in books_dict:
+            book = bs[0]
+            book = BookJson.decode(book)
+            stats = bs[1]
+            stats = BookStatsJson.decode(stats)
+            books.append((book, stats))
+        book_id = d["book_id"]
+        app = AccountingApp(books, book_id)
+        return app
+
+
+def load_app(save_json: str = None) -> AccountingApp:
+    if save_json is not None:
+        # print(f"Loaded app saved data")
+        saved = json.loads(save_json)
+        return AccountingAppJson.decode(saved)
+    return AccountingApp()
+
+
 if __name__ == "__main__":
+    # test: app save and load
+    app = load_app()
+    print(app)
+    app.create_book("b1")
+    app.create_book("b2")
+    app.switch_book(0)
+    app.append_item("Books", "haha", 14)
+    app.append_item("Clothes", "lol", 200.3)
+    app.switch_book(1)
+    app.append_item("Health", "sdkf", 155.5)
+    print(app)
+    appsave = json.dumps(app, cls=AccountingAppJson)
+    print(appsave)
+    app2 = load_app(appsave)
+    print(f"app2:\n{app2}")
+    U.print_list(app2.books[0][0].items)
+    U.print_list(app2.books[1][0].items)
+    exit()
+
     # test: json
     a = AccountItem("Books", "lol", 114.5)
     print(a)

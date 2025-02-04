@@ -8,7 +8,7 @@ def main(page: Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.update()
 
-    app = data.AccountingApp()
+    app = data.load_app()  # TODO: use save_json
 
     import random
     import utils as U
