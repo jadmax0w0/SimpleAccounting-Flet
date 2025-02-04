@@ -111,6 +111,37 @@ class TitleCard(ft.Card):
         self.update()
 
 
+class AccountItemRow(ft.Row):
+    def __init__(self, backend: AccountingApp, item: AccountItem, controls = None, alignment = None, vertical_alignment = None, spacing = None, tight = None, wrap = None, run_spacing = None, run_alignment = None, scroll = None, auto_scroll = None, on_scroll_interval = None, on_scroll = None, ref = None, key = None, width = None, height = None, left = None, top = None, right = None, bottom = None, expand = None, expand_loose = None, col = None, opacity = None, rotate = None, scale = None, offset = None, aspect_ratio = None, animate_opacity = None, animate_size = None, animate_position = None, animate_rotation = None, animate_scale = None, animate_offset = None, on_animation_end = None, visible = None, disabled = None, data = None, rtl = None, adaptive = None):
+        super().__init__(controls, alignment, vertical_alignment, spacing, tight, wrap, run_spacing, run_alignment, scroll, auto_scroll, on_scroll_interval, on_scroll, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, rtl, adaptive)
+        self.backend = backend
+        self.item = item
+
+        self.type_icon = AccountItemRow._item_text(value=item.type.icon, width=UIConfig.ItemIconWidth)
+        self.title = AccountItemRow._item_text(value=item.name, width=UIConfig.ItemNameWidth)
+        self.time = AccountItemRow._item_text(value=item.datetime_info, expand=True)
+        self.amount = AccountItemRow._item_text(
+            value=item.amount_info, width=UIConfig.ItemAmountWidth, align=ft.TextAlign.RIGHT, 
+            color=(ft.Colors.GREEN if item.amount >= 0 else ft.Colors.RED)
+        )
+
+        self.controls=[self.type_icon, self.title, self.time, self.amount]
+        self.expand = True
+
+    @staticmethod
+    def _item_text(value: str, width: int = None, expand: bool = None, align = ft.TextAlign.CENTER, color: ft.Colors = None):
+        return ft.Text(
+            value=value,
+            width=width,
+            size=UIConfig.ItemTextSize,
+            weight=UIConfig.ItemTextWeight,
+            text_align=align,
+            overflow=ft.TextOverflow.FADE,
+            color=color,
+            expand=expand,
+        )
+
+
 class AccountItemList(ft.ListView):
     def __init__(self, backend: AccountingApp, controls = None, horizontal = None, spacing = None, item_extent = None, first_item_prototype = None, divider_thickness = None, padding = None, clip_behavior = None, semantic_child_count = None, cache_extent = None, build_controls_on_demand = None, auto_scroll = None, reverse = None, on_scroll_interval = None, on_scroll = None, ref = None, key = None, width = None, height = None, left = None, top = None, right = None, bottom = None, expand = None, expand_loose = None, col = None, opacity = None, rotate = None, scale = None, offset = None, aspect_ratio = None, animate_opacity = None, animate_size = None, animate_position = None, animate_rotation = None, animate_scale = None, animate_offset = None, on_animation_end = None, visible = None, disabled = None, data = None, adaptive = None):
         super().__init__(controls, horizontal, spacing, item_extent, first_item_prototype, divider_thickness, padding, clip_behavior, semantic_child_count, cache_extent, build_controls_on_demand, auto_scroll, reverse, on_scroll_interval, on_scroll, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, adaptive)
@@ -127,34 +158,9 @@ class AccountItemList(ft.ListView):
         self.width = UIConfig.ItemListWidth
 
     def _parse_ui_items(self, items: list[AccountItem]) -> list[Control]:
-        def item_text(value: str, width: int = None, expand: bool = None, align = ft.TextAlign.CENTER, color: ft.Colors = None):
-            return ft.Text(
-                value=value,
-                width=width,
-                size=UIConfig.ItemTextSize,
-                weight=UIConfig.ItemTextWeight,
-                text_align=align,
-                overflow=ft.TextOverflow.FADE,
-                color=color,
-                expand=expand,
-            )
-        
-        def item_row(data: AccountItem):
-            type_icon = item_text(value=data.type.icon, width=UIConfig.ItemIconWidth)
-            title = item_text(value=data.name, width=UIConfig.ItemNameWidth)
-            time = item_text(value=data.datetime_info, expand=True)
-            amount = item_text(
-                value=data.amount_info, width=UIConfig.ItemAmountWidth, align=ft.TextAlign.RIGHT, 
-                color=(ft.Colors.GREEN if data.amount >= 0 else ft.Colors.RED)
-            )
-            return ft.Row(
-                controls=[type_icon, title, time, amount],
-                expand=True,
-            )
-        
         ui_items = []
         for item in items:
-            ui_items.append(item_row(item))
+            ui_items.append(AccountItemRow(self.backend, item))
         return ui_items
 
     def update(self):
