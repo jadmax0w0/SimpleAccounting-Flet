@@ -107,7 +107,7 @@ class TitleCard(ft.Card):
         for t in ui_types.selected_types:
             types += t.icon + " "
         self.filtered_types_info.value = types
-        self.month_inout.value = self.backend.addup(key=BookItemSelectKeys.SpecificMonth, to_info=True, item_list=ui_item_list.visible_items)
+        self.month_inout.value = self.backend.addup(key=BookItemSelectKeys.SpecificMonth, to_info=True, items_list=ui_item_list.visible_items)
         self.update()
 
 

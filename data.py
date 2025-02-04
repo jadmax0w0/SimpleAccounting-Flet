@@ -13,7 +13,7 @@ class AccountItem:
         self.amount = amount
 
     def __str__(self):
-        return f"{self.type.name} {self.name} {self.datetime} {self.amount}"
+        return f"AccountItem: ({self.type.name}, {self.name}, {self.datetime}, {self.amount})"
     
     @property
     def type(self):
@@ -47,7 +47,7 @@ class Book:
         self.items: list[AccountItem] = []
 
     def __str__(self):
-        return f"Book \"{self.name}\" ({self.create_time}) with {len(self.items)} items"
+        return f"Book: ({self.name}, {self.create_time}, {len(self.items)} items)"
 
     def addup(self, key: Callable[..., bool] = None, **kwargs) -> float:
         items = self.items
@@ -69,15 +69,12 @@ class Book:
 
         self.items.append(item)
 
-    def edit_item(self, target_id: int, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
-        target_item = None
-        if "target_item" in kwargs:
-            target_item = kwargs["target_item"]
-        else:
-            assert target_id >= 0 and target_id <= len(self.items)
-            target_item = self.items[target_id]
-        assert target_item is not None
-
+    def edit_item(self, item: AccountItem, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
+        if not isinstance(item, AccountItem) or item not in self.items:
+            return
+        if item not in self.items:
+            print(f"Warning: editing an item ({item}) not existing in {self}")
+        
         if "like" in kwargs:
             to_item: AccountItem = kwargs["like"]
             to_type = to_item.type if to_item.type is not None else to_type
@@ -86,33 +83,32 @@ class Book:
             to_time = to_item.datetime if to_item.datetime is not None else to_time
 
         if to_type is not None:
-            target_item.type = to_type
+            item.type = to_type
         if to_name is not None:
-            target_item.name = to_name
+            item.name = to_name
         if to_amount is not None:
-            target_item.amount = to_amount
+            item.amount = to_amount
         if to_time is not None:
-            target_item.datetime = to_time
+            item.datetime = to_time
 
-    def delete_item(self, target_id: int, **kwargs):
-        target_item = None
-        if "target_item" in kwargs:
-            target_item = kwargs["target_item"]
-        else:
-            assert target_id >= 0 and target_id < len(self.items)
-            target_item = self.items[target_id]
-        assert target_item is not None
+    def delete_item(self, item: AccountItem):
+        if not isinstance(item, AccountItem) or item not in self.items:
+            return
+        if item not in self.items:
+            print(f"Warning: attempting to delete an item ({item}) not existing in {self}; omit")
+            return
 
-        self.items.remove(target_item)
+        self.items.remove(item)
 
-    def sort_items(self, key: Callable, descending: bool = True):
+    def sort_items(self, key: Callable = None, descending: bool = True):
         """
         Usage:
         ```
         sort_items(key=BookItemSortKeys.Time)
         ```
         """
-        self.items = sorted(self.items, key=key, reverse=descending)
+        if key is not None:
+            self.items = sorted(self.items, key=key, reverse=descending)
 
     def select_items(self, key: Callable[..., bool] = None, sort_key: Callable = None, sort_descending: bool = True, **kwargs) -> list[AccountItem]:
         """
@@ -342,19 +338,49 @@ class AccountingApp:
     def append_item(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime, **kwargs):
         self.current_book.create_item(type, name, amount, time, **kwargs)
 
-    def edit_item(self, target_id: int, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
-        self.current_book.edit_item(target_id, to_type, to_name, to_amount, to_time, **kwargs)
+    def edit_item(self, item: AccountItem, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
+        self.current_book.edit_item(item, to_type, to_name, to_amount, to_time, **kwargs)
 
-    def delete_item(self, target_id: int, **kwargs):
-        self.current_book.delete_item(target_id, **kwargs)
+    def delete_item(self, item: AccountItem):
+        self.current_book.delete_item(item)
+    
+    def sort_items(self, key: Callable = None, descending: bool = True, items_list: list[AccountItem] = None):
+        """使用 `items_list` 参数，则返回排序后的列表；否则只对当前账本中的账目排序，无返回值"""
+        if isinstance(items_list, list):
+            return sorted(items_list, key=key, reverse=descending) if key is not None else items_list
+        self.current_book.sort_items(key=key, descending=descending)
+        return None
 
-    def addup(self, key: Callable[..., bool] = None, to_info: bool = False, **kwargs):
-        if "item_list" in kwargs:
-            item_list: list[AccountItem] = kwargs["item_list"]
-            amount = 0.0
-            for item in item_list:
+    def select_items(self, key: Callable[..., bool] = None, sort_key: Callable = None, sort_descending: bool = True, items_list: list[AccountItem] = None, **kwargs):
+        """使用 `items_list` 参数，则从给定列表中选择；否则只从当前账本的账目中选择"""
+        if not isinstance(items_list, list):
+            return self.current_book.select_items(key, sort_key, sort_descending, **kwargs)
+
+        selected = [] if key is not None else items_list
+        if len(selected) <= 0:
+            for item in items_list:
                 if key(item, **kwargs):
-                    amount += item.amount
+                    selected.append(item)
+        if sort_key is not None:
+            selected = sorted(selected, key=sort_key, reverse=sort_descending)
+        return selected
+
+    def merge_selected_items(self, to_union: bool = False, *selected_items: list[AccountItem]):
+        """将多个根据不同条件选取的账目列表取交集/并集"""
+        merged = set()
+        for items in selected_items:
+            if to_union:
+                merged = merged & set(items)
+            else:
+                merged = merged | set(items)
+        return list(merged)
+
+    def addup(self, key: Callable[..., bool] = None, to_info: bool = False, items_list: list[AccountItem] = None, **kwargs):
+        if isinstance(items_list, list):
+            selections: list[AccountItem] = self.select_items(key=key, items_list=items_list, **kwargs)
+            amount = 0.0
+            for item in selections:
+                amount += item.amount
         else:
             amount = self.current_book.addup(key=key, **kwargs)
 
@@ -363,27 +389,14 @@ class AccountingApp:
         else:
             return ("+" if amount > 0 else "") + f"{amount:.2f}"
 
-
     def inout_daily(self, year: int = None, month: int = None, day: int = None, to_info: bool = False):
-        amount = self.current_book.addup(key=BookItemSelectKeys.SpecificDay, year=year, month=month, day=day)
-        if not to_info:
-            return amount
-        else:
-            return ("+" if amount > 0 else "") + f"{amount:.2f}"
+        return self.addup(key=BookItemSelectKeys.SpecificDay, to_info=to_info, year=year, month=month, day=day)
     
     def inout_monthly(self, year: int = None, month: int = None, to_info: bool = False):
-        amount = self.current_book.addup(key=BookItemSelectKeys.SpecificMonth, year=year, month=month)
-        if not to_info:
-            return amount
-        else:
-            return ("+" if amount > 0 else "") + f"{amount:.2f}"
+        return self.addup(key=BookItemSelectKeys.SpecificMonth, to_info=to_info, year=year, month=month)
     
     def inout_yearly(self, year: int = None, to_info: bool = False):
-        amount = self.current_book.addup(key=BookItemSelectKeys.SpecificYear, year=year)
-        if not to_info:
-            return amount
-        else:
-            return ("+" if amount > 0 else "") + f"{amount:.2f}"
+        return self.addup(key=BookItemSelectKeys.SpecificYear, to_info=to_info, year=year)
 
 
 if __name__ == "__main__":
