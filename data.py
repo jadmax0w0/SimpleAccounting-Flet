@@ -2,6 +2,7 @@ import datetime as dt
 from datetime import datetime, timedelta
 import utils as U
 from typing import Callable
+import json
 
 
 class AccountItem:
@@ -13,7 +14,7 @@ class AccountItem:
         self.amount = amount
 
     def __str__(self):
-        return f"AccountItem: ({self.type.name}, {self.name}, {self.datetime}, {self.amount})"
+        return f"AccountItem: ({self.type}, {self.name}, {self.datetime}, {self.amount})"
     
     @property
     def type(self):
@@ -38,6 +39,31 @@ class AccountItem:
     @property
     def amount_info(self):
         return ("+" if self.amount > 0 else "") + f"{self.amount:.2f}"
+    
+
+class AccountItemJson(json.JSONEncoder):
+    def __init__(self, *, skipkeys = False, ensure_ascii = True, check_circular = True, allow_nan = True, sort_keys = False, indent = None, separators = None, default = None):
+        super().__init__(skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators, default=default)
+
+    def default(self, o):
+        if not isinstance(o, AccountItem):
+            return super().default(o)
+        return {
+            "type": o.type.name,
+            "name": o.name,
+            "amount": o.amount,
+            "datetime": (o.datetime.year, o.datetime.month, o.datetime.day, o.datetime.hour, o.datetime.minute, o.datetime.second, o.datetime.microsecond),
+        }
+    
+    @staticmethod
+    def decode(d):
+        dtinfo = d["datetime"]
+        return AccountItem(
+            type=d["type"],
+            name=d["name"],
+            amount=d["amount"],
+            time=datetime(dtinfo[0], dtinfo[1], dtinfo[2], dtinfo[3], dtinfo[4], dtinfo[5], dtinfo[6]),
+        )
 
 
 class Book:
@@ -59,7 +85,7 @@ class Book:
             result += item.amount
         return result
     
-    def create_item(self, type: U.AccountItemType | str, name: str, amount: float, time: datetime = None, **kwargs):
+    def create_item(self, type: U.AccountItemType | str = None, name: str = None, amount: float = None, time: datetime = None, **kwargs):
         item = None
         if "item" in kwargs:
             item = kwargs["item"]
@@ -127,6 +153,32 @@ class Book:
         if sort_key is not None:
             selected = sorted(selected, key=sort_key, reverse=sort_descending)
         return selected
+
+
+class BookJson(json.JSONEncoder):
+    def __init__(self, *, skipkeys = False, ensure_ascii = True, check_circular = True, allow_nan = True, sort_keys = False, indent = None, separators = None, default = None):
+        super().__init__(skipkeys=skipkeys, ensure_ascii=ensure_ascii, check_circular=check_circular, allow_nan=allow_nan, sort_keys=sort_keys, indent=indent, separators=separators, default=default)
+
+    def default(self, o):
+        if isinstance(o, Book):
+            items_serialized = []
+            for item in o.items:
+                items_serialized.append(json.loads(json.dumps(item, cls=AccountItemJson)))
+            return {
+                "name": o.name,
+                "create_time": (o.create_time.year, o.create_time.month, o.create_time.day, o.create_time.hour, o.create_time.minute, o.create_time.second, o.create_time.microsecond),
+                "items": items_serialized,
+            }
+        return super().default(o)
+    
+    @staticmethod
+    def decode(d):
+        dtinfo = d["create_time"]
+        b = Book(name=d["name"], time=datetime(dtinfo[0], dtinfo[1], dtinfo[2], dtinfo[3], dtinfo[4], dtinfo[5], dtinfo[6]))
+        for dd in d["items"]:
+            item = AccountItemJson.decode(dd)
+            b.create_item(item=item)
+        return b
 
 
 class BookItemSortKeys:
@@ -400,6 +452,27 @@ class AccountingApp:
 
 
 if __name__ == "__main__":
+    # test: json
+    a = AccountItem("Books", "lol", 114.5)
+    print(a)
+    s = json.dumps(a, cls=AccountItemJson)
+    print(s)
+    b = json.loads(s)
+    print(b)
+    b = AccountItemJson.decode(b)
+    print(b)
+
+    b1 = Book("a")
+    b1.create_item("Books", "haha", 114.5)
+    b1.create_item("Clothes", "lol", 14.0)
+    ss = json.dumps(b1, cls=BookJson)
+    print(ss)
+    b2 = json.loads(ss)
+    b2 = BookJson.decode(b2)
+    print(b2)
+    U.print_list(b2.items)
+    exit()
+
     b1, b2 = Book("a"), Book("b")
     b3 = Book("c")
     b4 = Book("c")
