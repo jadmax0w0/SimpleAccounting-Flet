@@ -205,8 +205,9 @@ class EmptyItemsHint(ft.Container):
     def __init__(self, backend: AccountingApp, content = None, padding = None, margin = None, alignment = None, bgcolor = None, gradient = None, blend_mode = None, border = None, border_radius = None, image_src = None, image_src_base64 = None, image_repeat = None, image_fit = None, image_opacity = None, shape = None, clip_behavior = None, ink = None, image = None, ink_color = None, animate = None, blur = None, shadow = None, url = None, url_target = None, theme = None, theme_mode = None, color_filter = None, ignore_interactions = None, foreground_decoration = None, on_click = None, on_tap_down = None, on_long_press = None, on_hover = None, ref = None, key = None, width = None, height = None, left = None, top = None, right = None, bottom = None, expand = None, expand_loose = None, col = None, opacity = None, rotate = None, scale = None, offset = None, aspect_ratio = None, animate_opacity = None, animate_size = None, animate_position = None, animate_rotation = None, animate_scale = None, animate_offset = None, on_animation_end = None, tooltip = None, badge = None, visible = None, disabled = None, data = None, rtl = None, adaptive = None):
         super().__init__(content, padding, margin, alignment, bgcolor, gradient, blend_mode, border, border_radius, image_src, image_src_base64, image_repeat, image_fit, image_opacity, shape, clip_behavior, ink, image, ink_color, animate, blur, shadow, url, url_target, theme, theme_mode, color_filter, ignore_interactions, foreground_decoration, on_click, on_tap_down, on_long_press, on_hover, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, tooltip, badge, visible, disabled, data, rtl, adaptive)
         self.backend = backend
+        self.event_create_clicked = UIMessage()
 
-        self.create_item_button = ft.IconButton(icon=ft.Icons.ADD)  # TODO: on click
+        self.create_item_button = ft.IconButton(icon=ft.Icons.ADD, on_click=self.create_button_clicked)
         self.hint = ft.ListTile(
             title=ft.Text("无账目"),
             subtitle=ft.Text("开始记下第一笔账吧"),
@@ -219,6 +220,9 @@ class EmptyItemsHint(ft.Container):
         self.padding = UIConfig.EmptyItemsHintPadding
         self.alignment = ft.alignment.center
         self.expand = True
+
+    def create_button_clicked(self, e):
+        self.event_create_clicked.invoke(None)
 
 
 class ItemTypeButton(ft.FilledTonalButton):
@@ -297,12 +301,16 @@ class CreateItemButton(ft.FloatingActionButton):
     def __init__(self, backend: AccountingApp, text = None, icon = None, bgcolor = None, content = None, shape = None, autofocus = None, mini = None, foreground_color = None, focus_color = None, clip_behavior = None, elevation = None, disabled_elevation = None, focus_elevation = None, highlight_elevation = None, hover_elevation = None, enable_feedback = None, url = None, url_target = None, mouse_cursor = None, on_click = None, ref = None, key = None, width = None, height = None, left = None, top = None, right = None, bottom = None, expand = None, expand_loose = None, col = None, opacity = None, rotate = None, scale = None, offset = None, aspect_ratio = None, animate_opacity = None, animate_size = None, animate_position = None, animate_rotation = None, animate_scale = None, animate_offset = None, on_animation_end = None, tooltip = None, badge = None, visible = None, disabled = None, data = None):
         super().__init__(text, icon, bgcolor, content, shape, autofocus, mini, foreground_color, focus_color, clip_behavior, elevation, disabled_elevation, focus_elevation, highlight_elevation, hover_elevation, enable_feedback, url, url_target, mouse_cursor, on_click, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, tooltip, badge, visible, disabled, data)
         self.backend = backend
+        self.event_clicked = UIMessage()
 
         self.icon = ft.Icons.ADD
         self.width = UIConfig.CreateItemButtonWidth
         self.height = UIConfig.CreateItemButtonHeight
         self.expand = False
-        self.on_click = None  # TODO
+        self.on_click = self.clicked
+
+    def clicked(self, e):
+        self.event_clicked.invoke(None)
 
 
 class BottomRowContainer(ft.Container):
@@ -492,16 +500,23 @@ class AccountingAppUI(ft.Container):
         super().__init__(controls, alignment, horizontal_alignment, spacing, tight, wrap, run_spacing, run_alignment, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, rtl, scroll, auto_scroll, on_scroll_interval, on_scroll, adaptive)
         self.backend = backend
 
-        # self.main_column = MainColumn(self.backend)
+        # main content
         self.main_stack = MainStack(self.backend)
+
+        # pop-up
         self.item_info_editor = ItemInfoEditorBottomSheet(self.backend)
 
         # message subscriptions
+        # 点击界面底部的类别按钮时
         self.main_stack.bottom_bar.row_content.item_types.event_type_button_click.add(self.main_stack.main_column.items_list.filter_items)
+        # 点击类别按钮后筛选好对应类别的账目时
         self.main_stack.main_column.items_list.event_items_filtered.add(
             self.main_stack.main_column.title_card.filtered_monthly_inout,
             self.main_stack.main_column.items_updated,
         )
+        # 点击新增账目/编辑账目按钮时
+        self.main_stack.main_column.empty_items_hint.event_create_clicked.add(self.open_item_info_editor)
+        self.main_stack.bottom_bar.row_content.create_item_button.event_clicked.add(self.open_item_info_editor)
         
         self.content = self.main_stack
         self.expand = True
@@ -510,3 +525,6 @@ class AccountingAppUI(ft.Container):
         super().update()
         self.content.update()
         print(f"{self.__class__.__name__} updated")
+
+    def open_item_info_editor(self, sender):
+        self.page.open(self.item_info_editor)
