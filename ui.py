@@ -39,6 +39,9 @@ class UIConfig:
     ItemListSpacing = 15
     ItemListWidth = None
 
+    EmptyItemsHintWidth = 300
+    EmptyItemsHintPadding = ft.Padding(0, 0, 0, 80)  # BottomRowHeight
+
     # bottom bar
     TypesListHeight = 35
     TypesListSpacing = 15
@@ -155,7 +158,7 @@ class AccountItemList(ft.ListView):
         super().__init__(controls, horizontal, spacing, item_extent, first_item_prototype, divider_thickness, padding, clip_behavior, semantic_child_count, cache_extent, build_controls_on_demand, auto_scroll, reverse, on_scroll_interval, on_scroll, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, adaptive)
         self.backend = backend
         
-        self.message_pub = UIMessage()
+        self.event_items_filtered = UIMessage()
         self.visible_items: list[Control] = backend.current_items(sort_key=BookItemSortKeys.Time)
         self.visible_items_ui = self._parse_ui_items(self.visible_items)
         self.controls = self.visible_items_ui
@@ -195,7 +198,27 @@ class AccountItemList(ft.ListView):
 
         self.controls = self.visible_items_ui
         self.update()
-        self.message_pub.invoke((self, type_list))
+        self.event_items_filtered.invoke((self, type_list))
+
+
+class EmptyItemsHint(ft.Container):
+    def __init__(self, backend: AccountingApp, content = None, padding = None, margin = None, alignment = None, bgcolor = None, gradient = None, blend_mode = None, border = None, border_radius = None, image_src = None, image_src_base64 = None, image_repeat = None, image_fit = None, image_opacity = None, shape = None, clip_behavior = None, ink = None, image = None, ink_color = None, animate = None, blur = None, shadow = None, url = None, url_target = None, theme = None, theme_mode = None, color_filter = None, ignore_interactions = None, foreground_decoration = None, on_click = None, on_tap_down = None, on_long_press = None, on_hover = None, ref = None, key = None, width = None, height = None, left = None, top = None, right = None, bottom = None, expand = None, expand_loose = None, col = None, opacity = None, rotate = None, scale = None, offset = None, aspect_ratio = None, animate_opacity = None, animate_size = None, animate_position = None, animate_rotation = None, animate_scale = None, animate_offset = None, on_animation_end = None, tooltip = None, badge = None, visible = None, disabled = None, data = None, rtl = None, adaptive = None):
+        super().__init__(content, padding, margin, alignment, bgcolor, gradient, blend_mode, border, border_radius, image_src, image_src_base64, image_repeat, image_fit, image_opacity, shape, clip_behavior, ink, image, ink_color, animate, blur, shadow, url, url_target, theme, theme_mode, color_filter, ignore_interactions, foreground_decoration, on_click, on_tap_down, on_long_press, on_hover, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, tooltip, badge, visible, disabled, data, rtl, adaptive)
+        self.backend = backend
+
+        self.create_item_button = ft.IconButton(icon=ft.Icons.ADD)  # TODO: on click
+        self.hint = ft.ListTile(
+            title=ft.Text("无账目"),
+            subtitle=ft.Text("开始记下第一笔账吧"),
+            leading=ft.Icon(ft.Icons.SAVINGS),
+            trailing=self.create_item_button,
+            width=UIConfig.EmptyItemsHintWidth,
+        )
+
+        self.content = self.hint
+        self.padding = UIConfig.EmptyItemsHintPadding
+        self.alignment = ft.alignment.center
+        self.expand = True
 
 
 class ItemTypeButton(ft.FilledTonalButton):
@@ -225,7 +248,7 @@ class ItemTypesList(ft.ListView):
         super().__init__(controls, horizontal, spacing, item_extent, first_item_prototype, divider_thickness, padding, clip_behavior, semantic_child_count, cache_extent, build_controls_on_demand, auto_scroll, reverse, on_scroll_interval, on_scroll, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, adaptive)
         self.backend = backend
 
-        self.message_pub = UIMessage()
+        self.event_type_button_click = UIMessage()
         self.selected_types: list[U.AccountItemType] = []
         self._selected_type_ids = []
 
@@ -254,7 +277,7 @@ class ItemTypesList(ft.ListView):
         elif isinstance(button, ItemTypeButton) and not button.selected:
             self.select_type(button.type_id)
         button.switch()
-        self.message_pub.invoke(self)
+        self.event_type_button_click.invoke(self)
         # U.print_list(self.selected_types)
     
     def type_buttons(self):
@@ -323,7 +346,8 @@ class MainColumn(ft.Column):
 
         self.title_card = TitleCard(backend=self.backend)
         self.items_list = AccountItemList(backend=self.backend)
-        self.controls = [self.title_card, self.items_list]
+        self.empty_items_hint = EmptyItemsHint(backend=self.backend)
+        self.controls = [self.title_card, self.empty_items_hint]
 
         self.expand=True
         self.spacing=UIConfig.ItemListSpacing
@@ -334,6 +358,13 @@ class MainColumn(ft.Column):
         for c in self.controls:
             c.update()
         print(f"{self.__class__.__name__} updated")
+
+    def items_updated(self):
+        if self.backend.current_items() is not None and len(self.backend.current_items()) > 0:
+            self.controls = [self.title_card, self.items_list]
+        else:
+            self.controls = [self.title_card, self.empty_items_hint]
+        self.update()
 
 
 class MainStack(ft.Stack):
@@ -364,8 +395,11 @@ class AccountingAppUI(ft.Container):
         self.main_stack = MainStack(self.backend)
 
         # message subscriptions
-        self.main_stack.bottom_bar.row_content.item_types.message_pub.add(self.main_stack.main_column.items_list.filter_items)
-        self.main_stack.main_column.items_list.message_pub.add(self.main_stack.main_column.title_card.filtered_monthly_inout)
+        self.main_stack.bottom_bar.row_content.item_types.event_type_button_click.add(self.main_stack.main_column.items_list.filter_items)
+        self.main_stack.main_column.items_list.event_items_filtered.add(
+            self.main_stack.main_column.title_card.filtered_monthly_inout,
+            self.main_stack.main_column.items_updated,
+        )
         
         self.content = self.main_stack
         self.expand = True
