@@ -66,9 +66,19 @@ class AccountItemType:
         if isinstance(value, AccountItemType):
             return self.icon == value.icon and self.name == value.name and self.namealt == self.namealt
         elif isinstance(value, str):
-            return self.name == value or value in self.namealt
+            if self.name == value or value in self.namealt:
+                return True
+            elif self.icon in value or value in self.icon:
+                return True
+            elif self.name in value or value in self.name:
+                return True
+            else:
+                return False
         else:
             return False
+
+
+
 
 
 class AccountItemTypes:

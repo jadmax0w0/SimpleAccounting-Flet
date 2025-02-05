@@ -356,6 +356,10 @@ class ItemInfoEditor(ft.Column):
         super().__init__(controls, alignment, horizontal_alignment, spacing, tight, wrap, run_spacing, run_alignment, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, rtl, scroll, auto_scroll, on_scroll_interval, on_scroll, adaptive)
         self.backend = backend
         self.item = None
+        self.selected_date = datetime.now()
+
+        self.event_confirm = UIMessage()
+        self.event_cancel = UIMessage()
 
         self.type_select = ft.Dropdown(options=self._parse_type_options(), label="账目类型")
         self.name_input = ft.TextField(label="记账内容")
@@ -368,10 +372,10 @@ class ItemInfoEditor(ft.Column):
                 ft.Segment(value="out", label=ft.Text("支出")),
             ],
         )
-        self.selected_date = ft.Text("datetime")
+        self.selected_date_text = ft.Text(datetime.now().strftime("%Y-%m-%d %H:%M"))
         self.date_button = ft.ElevatedButton(text="选择日期", on_click=self.pick_date, height=45)
-        self.confirm_button = ft.ElevatedButton(text="确定", width=100, height=50)
-        self.cancel_button = ft.ElevatedButton(text="取消", width=100, height=50)  # TODO: on click
+        self.confirm_button = ft.ElevatedButton(text="确定", width=100, height=50, on_click=self.on_confirm)
+        self.cancel_button = ft.ElevatedButton(text="取消", width=100, height=50, on_click=self.on_cancel)
 
         self.controls = [
             self.type_select,
@@ -380,7 +384,7 @@ class ItemInfoEditor(ft.Column):
                 self.amount_input,
                 self.income_expense
             ], alignment=ft.MainAxisAlignment.START),
-            ft.Row([self.date_button, self.selected_date]),
+            ft.Row([self.date_button, self.selected_date_text]),
             ft.Row([self.cancel_button, self.confirm_button], alignment=ft.MainAxisAlignment.END)
         ]
         self.expand = True
@@ -389,8 +393,16 @@ class ItemInfoEditor(ft.Column):
         options = []
         for t in U.AccountItemTypes.CustomTypes:
             title = f"{t.icon} {t.name}"
-            options.append(ft.dropdown.Option(title))
+            options.append(ft.dropdown.Option(key=t.name, text=title))
         return options
+
+    def _clear_input(self):
+        self.item = None
+        self.type_select.value = None
+        self.name_input.value = ""
+        self.amount_input.value = ""
+        self.income_expense.value = "out"
+        self.selected_date_text.value = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     def update(self):
         super().update()
@@ -398,24 +410,78 @@ class ItemInfoEditor(ft.Column):
         self.name_input.update()
         self.amount_input.update()
         self.income_expense.update()
-        self.selected_date.update()
+        self.selected_date_text.update()
         self.date_button.update()
         self.confirm_button.update()
         self.cancel_button.update()
 
     def on_pop_up(self):
         self.update()
-        pass
 
-    def set_filtered_type(self):
-        pass
+    def on_confirm(self, sender):
+        # 首先检测信息是否填写完整
+        if self.type_select.value is None or len(self.type_select.value) == 0:
+            print("Warning: type not selected")
+            return
+        if len(self.name_input.value) == 0:
+            print("Warning: name not filled")
+            return
+        try:
+            amount = float(self.amount_input.value)
+            if amount <= 0:
+                raise ValueError
+        except ValueError:
+            print("Warning: invalid amount")
+            return
+        # if len(self.income_expense.selected & {"in", "out"}) <= 0 or self.income_expense.selected is None:
+        #     print("Warning: invalid income/expense selection") 
+        #     return
+        if "out" in self.income_expense.selected:
+            amount = -amount
+        
+        # 然后调用事件
+        self.event_confirm.invoke({
+            "type": self.type_select.value,
+            "name": self.name_input.value,
+            "amount": amount,
+            "date": self.selected_date
+        })
+        self._clear_input()  # 如果确认了，则清空输入框
+
+    def on_cancel(self, sender):
+        self.event_cancel.invoke(None)
+
+    def set_filtered_type(self, sender: ItemTypesList):
+        if len(sender.selected_types) <= 0:
+            return
+        type = sender.selected_types[-1]
+        for option in self.type_select.options:
+            if option.key == type.name:
+
+                self.type_select.value = option.key
+                break
 
     def set_item(self, item: AccountItem):
         self.item = item
-        pass
+        self.type_select.value = item.type
+        self.name_input.value = item.name
+        self.amount_input.value = str(item.amount)
+        self.income_expense.value = "in" if item.amount > 0 else "out"
+        self.selected_date_text.value = item.datetime
 
-    def pick_date(self):
-        pass
+    def _date_picker_on_change(self, e):
+        self.selected_date = e.control.value
+        self.selected_date_text.value = self.selected_date.strftime("%Y-%m-%d %H:%M")
+        self.update()
+
+    def pick_date(self, e):
+        date_picker = ft.DatePicker(
+            on_change=self._date_picker_on_change,
+            first_date=datetime(1900, 1, 1),
+            last_date=datetime(2100, 12, 31),
+            value=self.selected_date
+        )
+        self.page.open(date_picker)
 
 
 class ItemInfoEditorContainer(ft.Container):
@@ -456,7 +522,10 @@ class MainColumn(ft.Column):
         self.title_card = TitleCard(backend=self.backend)
         self.items_list = AccountItemList(backend=self.backend)
         self.empty_items_hint = EmptyItemsHint(backend=self.backend)
-        self.controls = [self.title_card, self.empty_items_hint]
+        if self.backend.current_items() is not None and len(self.backend.current_items()) > 0:
+            self.controls = [self.title_card, self.items_list]
+        else:
+            self.controls = [self.title_card, self.empty_items_hint]
 
         self.expand=True
         self.spacing=UIConfig.ItemListSpacing
@@ -468,7 +537,7 @@ class MainColumn(ft.Column):
             c.update()
         print(f"{self.__class__.__name__} updated")
 
-    def items_updated(self):
+    def items_updated(self, sender):
         if self.backend.current_items() is not None and len(self.backend.current_items()) > 0:
             self.controls = [self.title_card, self.items_list]
         else:
@@ -508,7 +577,10 @@ class AccountingAppUI(ft.Container):
 
         # message subscriptions
         # 点击界面底部的类别按钮时
-        self.main_stack.bottom_bar.row_content.item_types.event_type_button_click.add(self.main_stack.main_column.items_list.filter_items)
+        self.main_stack.bottom_bar.row_content.item_types.event_type_button_click.add(
+            self.main_stack.main_column.items_list.filter_items,
+            self.item_info_editor.editor_container.item_editor.set_filtered_type,
+        )
         # 点击类别按钮后筛选好对应类别的账目时
         self.main_stack.main_column.items_list.event_items_filtered.add(
             self.main_stack.main_column.title_card.filtered_monthly_inout,
@@ -517,7 +589,10 @@ class AccountingAppUI(ft.Container):
         # 点击新增账目/编辑账目按钮时
         self.main_stack.main_column.empty_items_hint.event_create_clicked.add(self.open_item_info_editor)
         self.main_stack.bottom_bar.row_content.create_item_button.event_clicked.add(self.open_item_info_editor)
-        
+        # 点击账目编辑页面中的确认/取消按钮时
+        self.item_info_editor.editor_container.item_editor.event_confirm.add(self.append_item)
+        self.item_info_editor.editor_container.item_editor.event_cancel.add(self.close_item_info_editor)
+
         self.content = self.main_stack
         self.expand = True
 
@@ -528,3 +603,18 @@ class AccountingAppUI(ft.Container):
 
     def open_item_info_editor(self, sender):
         self.page.open(self.item_info_editor)
+        self.item_info_editor.editor_container.item_editor.on_pop_up()
+
+    def close_item_info_editor(self, sender):
+        self.page.close(self.item_info_editor)
+    
+    def append_item(self, sender):
+        self.backend.append_item(sender["type"], sender["name"], sender["amount"], sender["date"])
+        self.close_item_info_editor(sender)
+
+        print(f"New item appended: {sender}")
+        self.update()
+
+    def edit_item(self, sender):
+        self.backend.edit_item(sender["item"], sender["type"], sender["name"], sender["amount"], sender["date"])
+        self.close_item_info_editor(sender)
