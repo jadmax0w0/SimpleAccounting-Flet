@@ -26,6 +26,7 @@ def main(page: Page):
     page.add(safe)
 
     appui.update()
+    page.open(appui.item_info_editor)
 
 
 if __name__ == "__main__":
