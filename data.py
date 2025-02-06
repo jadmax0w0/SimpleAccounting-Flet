@@ -78,11 +78,37 @@ class Book:
         self.create_time = datetime.now() if time is None else time
         self.items: list[AccountItem] = []
 
+        self._ops = []
+        self._year_months = self._existing_months()
+
     def __str__(self):
         return f"Book: ({self.name}, {self.create_time}, {len(self.items)} items)"
+    
+    def _op(self, op: str):
+        self._ops.append(op)
+        if len(self._ops) > 5:
+            self._ops = self._ops[-5:]
+
+    def _existing_months(self):
+        months = set()
+        for item in self.items:
+            months.add((item.datetime.year, item.datetime.month))
+        return months
+
+    @property
+    def year_months(self):
+        if len(self._ops) > 0 and (self._ops[-1] is "create"):
+            print(f"Warning: book {self.name} has been modified, year_months is not fully updated")
+            return self._year_months
+        else:
+            print(f"Warning: book {self.name} has been modified, year_months is fully updated")
+            self._year_months = self._existing_months()
+            return self._year_months
 
     def addup(self, key: Callable[..., bool] = None, **kwargs) -> float:
         items = self.items
+
+
         if key is not None:
             items = self.select_items(key, **kwargs)
 
@@ -100,6 +126,8 @@ class Book:
         assert item is not None
 
         self.items.append(item)
+        self._year_months = self._year_months | {(item.datetime.year, item.datetime.month)}
+        self._op("create")
 
     def edit_item(self, item: AccountItem, to_type = None, to_name = None, to_amount = None, to_time = None, **kwargs):
         if not isinstance(item, AccountItem) or item not in self.items:
@@ -123,14 +151,18 @@ class Book:
         if to_time is not None:
             item.datetime = to_time
 
+        self._op("edit")
+
     def delete_item(self, item: AccountItem):
         if not isinstance(item, AccountItem) or item not in self.items:
+
             return
         if item not in self.items:
             print(f"Warning: attempting to delete an item ({item}) not existing in {self}; omit")
             return
 
         self.items.remove(item)
+        self._op("delete")
 
     def sort_items(self, key: Callable = None, descending: bool = True):
         """
@@ -533,6 +565,25 @@ def load_app(save_json: str = None) -> AccountingApp:
 
 
 if __name__ == "__main__":
+    # test: book ops
+    b = Book("a")
+    print(b.year_months)
+    b.create_item("Books", "haha", 14, datetime(2024, 1, 1))
+    print(b.year_months)
+    b.create_item("Books", "haha2", 14, datetime(2024, 2, 2))
+    print(b.year_months)
+    b.create_item("Books", "haha3", 14, datetime(2024, 3, 3))
+    print(b.year_months)
+    b.create_item("Books", "haha4", 14, datetime(2024, 4, 4))
+    print(b.year_months)
+    b.create_item("Books", "haha5", 14, datetime(2024, 5, 5))
+    print(b.year_months)
+    b.edit_item(b.items[0], to_time=datetime(2024, 2, 2))
+    print(b.year_months)
+    b.delete_item(b.items[-1])
+    print(b.year_months)
+    exit()
+
     # test: app save and load
     app = load_app()
     print(app)
