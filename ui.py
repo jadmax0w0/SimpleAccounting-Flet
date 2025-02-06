@@ -17,10 +17,14 @@ class MainColumn(ft.Column):
         self.title_card = TitleCard(backend=self.backend)
         self.items_list = AccountItemList(backend=self.backend)
         self.empty_items_hint = EmptyItemsHint(backend=self.backend)
-        if self.backend.current_items() is not None and len(self.backend.current_items()) > 0:
-            self.controls = [self.title_card, self.items_list]
+        self.controls = [self.title_card, self.items_list, self.empty_items_hint]
+
+        if self.items_list.visible_items is not None and len(self.items_list.visible_items) > 0:
+            self.items_list.visible = True
+            self.empty_items_hint.visible = False
         else:
-            self.controls = [self.title_card, self.empty_items_hint]
+            self.items_list.visible = False
+            self.empty_items_hint.visible = True
 
         self.expand=True
         self.spacing=UIConfig.ItemListSpacing
@@ -33,10 +37,12 @@ class MainColumn(ft.Column):
         print(f"{self.__class__.__name__} updated")
 
     def items_updated(self, sender):
-        if self.backend.current_items() is not None and len(self.backend.current_items()) > 0:
-            self.controls = [self.title_card, self.items_list]
+        if self.items_list.visible_items is not None and len(self.items_list.visible_items) > 0:
+            self.items_list.visible = True
+            self.empty_items_hint.visible = False
         else:
-            self.controls = [self.title_card, self.empty_items_hint]
+            self.items_list.visible = False
+            self.empty_items_hint.visible = True
         self.update()
 
 
