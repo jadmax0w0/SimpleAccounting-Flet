@@ -118,6 +118,6 @@ class AccountingAppUI(ft.Container):
         self.close_item_info_editor(sender)
 
         print(f"New item appended/edited: {sender}")
-        self.main_stack.main_column.title_card.filtered_monthly_inout((self.main_stack.main_column.items_list, self.main_stack.bottom_bar.row_content.item_types))
         self.main_stack.main_column.items_list.filter_items(None)
+        self.main_stack.main_column.title_card.filtered_monthly_inout((self.main_stack.main_column.items_list, self.main_stack.bottom_bar.row_content.item_types))
         self.update()

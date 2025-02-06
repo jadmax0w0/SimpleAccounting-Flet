@@ -117,10 +117,15 @@ class AccountItemList(ft.ListView):
         self.event_items_filtered = UIMessage()
         self.event_item_clicked = UIMessage()
 
+        self.selected_year_month = {(datetime.now().year, datetime.now().month)}
         self.selected_types_cache: list[AccountItemType] = []
         self.visible_items: list[Control] = backend.current_items(sort_key=BookItemSortKeys.Time)
         self.visible_items_ui = self._parse_ui_items(self.visible_items)
-        self.expansion_list_view = ft.ExpansionPanelList(controls=self.visible_items_ui, spacing=UIConfig.ItemListSpacing, expand=True)
+
+        self.expansion_list_view = ft.ExpansionPanelList(
+            controls=self.visible_items_ui, 
+            spacing=UIConfig.ItemListSpacing, expand=True, on_change=self._expansion_panel_list_changed
+        )
 
         self.controls = [self.expansion_list_view]  # 单独使用 expansion panel list 无法滚动，所以使用 listview 包裹
         self.padding = UIConfig.ItemListPadding
@@ -129,15 +134,30 @@ class AccountItemList(ft.ListView):
         self.width = UIConfig.ItemListWidth
 
     def _parse_ui_items(self, items: list[AccountItem]) -> list[Control]:
+        ui_items = []
+
         year_months = self.backend.year_months(items)
         year_months = sorted(year_months, reverse=True)
-        ui_items = []
         for year_month in year_months:
             items_of_year_month = self.backend.select_items(key=BookItemSelectKeys.SpecificMonth, items_list=items, year=year_month[0], month=year_month[1])
             ui_item = AccountItemExpansionPanel(self.backend, items_of_year_month)
+            if year_month in self.selected_year_month:
+                ui_item.expanded = True
             ui_item.event_item_clicked.add(self.item_clicked)
+            
             ui_items.append(ui_item)
+
         return ui_items
+    
+    def _expansion_panel_list_changed(self, e):
+        clicked_panel = self.expansion_list_view.controls[int(e.data)]
+        if isinstance(clicked_panel, AccountItemExpansionPanel):
+            if clicked_panel.expanded:
+                self.selected_year_month.add((clicked_panel.year_month[0], clicked_panel.year_month[1]))
+            else:
+                self.selected_year_month.remove((clicked_panel.year_month[0], clicked_panel.year_month[1]))
+        if len(self.selected_year_month) <= 0:
+            self.selected_year_month.add((datetime.now().year, datetime.now().month))
 
     def update(self):
         super().update()
