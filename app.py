@@ -14,7 +14,7 @@ def main(page: Page):
     import utils as U
     for _ in range(50):
         app.append_item(
-            type=random.choice(U.AccountItemTypes.CustomTypes),
+            type=random.choice(U.AccountItemTypes.CustomTypes[:-2]),
             name="",
             amount=random.randrange(10, 200),
             time=U.random_datetime(year=(2024, 2025)),
