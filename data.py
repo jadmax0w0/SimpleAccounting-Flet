@@ -32,9 +32,11 @@ class AccountItem:
         else:
             raise ValueError(f"Given value {value} ({type(value).__name__}) is not a valid type value")
         
-    @property
-    def datetime_info(self):
-        return f"{self.datetime.year} 年 {self.datetime.month} 月 {self.datetime.day} 日 {self.datetime.hour:02}:{self.datetime.minute:02}"
+    def datetime_info(self, verbose: bool = False):
+        if verbose:
+            return f"{self.datetime.year} 年 {self.datetime.month} 月 {self.datetime.day} 日 {self.datetime.hour:02}:{self.datetime.minute:02}"
+        else:
+            return f"{self.datetime.year} 年 {self.datetime.month} 月 {self.datetime.day} 日"
     
     @property
     def amount_info(self):
