@@ -25,13 +25,16 @@ class UIConfig:
     TitleCardInnerPadding = ft.Padding(30, 15, 30, 15)
     
     # item list
+    ItemYearMonthTextSize = 20
+    ItemYearMonthTextWeight = ft.FontWeight.BOLD  # 600
+    ItemYearMonthPadding = 15
     ItemTextSize = 15
     ItemTextWeight = ft.FontWeight.NORMAL  # 400
     ItemIconWidth = 20
     ItemNameWidth = 150
     ItemTimeWidth = 300
     ItemAmountWidth = 100
-    ItemListPadding = ft.Padding(30, 0, 30, 0)
+    ItemListPadding = ft.Padding(15, 0, 15, 80)  # BottomRowHeight
     ItemListSpacing = 15
     ItemListWidth = None
 

@@ -53,23 +53,32 @@ class AccountItemRow(ft.ListTile):
             c.update()
 
 
-class AccountItemList(ft.ListView):
-    def __init__(self, backend: AccountingApp, controls = None, horizontal = None, spacing = None, item_extent = None, first_item_prototype = None, divider_thickness = None, padding = None, clip_behavior = None, semantic_child_count = None, cache_extent = None, build_controls_on_demand = None, auto_scroll = None, reverse = None, on_scroll_interval = None, on_scroll = None, ref = None, key = None, width = None, height = None, left = None, top = None, right = None, bottom = None, expand = None, expand_loose = None, col = None, opacity = None, rotate = None, scale = None, offset = None, aspect_ratio = None, animate_opacity = None, animate_size = None, animate_position = None, animate_rotation = None, animate_scale = None, animate_offset = None, on_animation_end = None, visible = None, disabled = None, data = None, adaptive = None):
-        super().__init__(controls, horizontal, spacing, item_extent, first_item_prototype, divider_thickness, padding, clip_behavior, semantic_child_count, cache_extent, build_controls_on_demand, auto_scroll, reverse, on_scroll_interval, on_scroll, ref, key, width, height, left, top, right, bottom, expand, expand_loose, col, opacity, rotate, scale, offset, aspect_ratio, animate_opacity, animate_size, animate_position, animate_rotation, animate_scale, animate_offset, on_animation_end, visible, disabled, data, adaptive)
+class AccountItemExpansionPanel(ft.ExpansionPanel):
+    def __init__(self, backend: AccountingApp, items: list[AccountItem]):
+        super().__init__()
         self.backend = backend
-        
-        self.event_items_filtered = UIMessage()
+        self.items = items
+        self.year_month = (self.items[0].datetime.year, self.items[0].datetime.month)
+
         self.event_item_clicked = UIMessage()
 
-        self.selected_types_cache: list[AccountItemType] = []
-        self.visible_items: list[Control] = backend.current_items(sort_key=BookItemSortKeys.Time)
-        self.visible_items_ui = self._parse_ui_items(self.visible_items)
-        self.controls = self.visible_items_ui
+        self.year_month_text = ft.Text(
+            value=self.items[0].datetime.strftime("%Y 年 %m 月"), 
+            text_align=ft.TextAlign.LEFT, weight=UIConfig.ItemYearMonthTextWeight, size=UIConfig.ItemYearMonthTextSize, expand=True
+        )
+        self.monthly_inout = ft.Text(
+            value=self.backend.addup(key=BookItemSelectKeys.SpecificMonth, items_list=self.items, year=self.year_month[0], month=self.year_month[1], to_info=True), 
+            text_align=ft.TextAlign.RIGHT, weight=UIConfig.ItemYearMonthTextWeight, size=UIConfig.ItemYearMonthTextSize, expand=True
+        )
+        self.header_container = ft.Container(
+            content=ft.Row([self.year_month_text, self.monthly_inout], expand=True),
+            expand=True, padding=UIConfig.ItemYearMonthPadding
+        )
+        self.item_controls = self._parse_ui_items(self.items)
+        self.item_column = ft.Column(controls=self.item_controls, expand=True)
 
-        self.padding = UIConfig.ItemListPadding
-        self.spacing = UIConfig.ItemListSpacing
-        self.expand = True
-        self.width = UIConfig.ItemListWidth
+        self.header = self.header_container
+        self.content = self.item_column
 
     def _parse_ui_items(self, items: list[AccountItem]) -> list[Control]:
         ui_items = []
@@ -78,10 +87,63 @@ class AccountItemList(ft.ListView):
             ui_item.event_clicked.add(self.item_clicked)
             ui_items.append(ui_item)
         return ui_items
+    
+    def item_clicked(self, item: AccountItem):
+        self.event_item_clicked.invoke(item)
+
+    def update(self):
+        super().update()
+        self.year_month_text.update()
+        self.monthly_inout.update()
+        for c in self.item_controls:
+            c.update()
+
+    def update_items(self, items: list[AccountItem]):
+        self.items = items
+
+        self.year_month = (self.items[0].datetime.year, self.items[0].datetime.month)
+        self.year_month_text.value = self.items[0].datetime.strftime("%Y 年 %m 月")
+        self.monthly_inout.value = self.backend.addup(key=BookItemSelectKeys.SpecificMonth, items_list=self.items, year=self.year_month[0], month=self.year_month[1], to_info=True)
+        self.item_controls = self._parse_ui_items(self.items)
+        self.item_column.controls = self.item_controls
+        self.update()
+
+
+class AccountItemList(ft.ListView):
+    def __init__(self, backend: AccountingApp):
+        super().__init__()
+        self.backend = backend
+        
+        self.event_items_filtered = UIMessage()
+        self.event_item_clicked = UIMessage()
+
+        self.selected_types_cache: list[AccountItemType] = []
+        self.visible_items: list[Control] = backend.current_items(sort_key=BookItemSortKeys.Time)
+        self.visible_items_ui = self._parse_ui_items(self.visible_items)
+        self.expansion_list_view = ft.ExpansionPanelList(controls=self.visible_items_ui, spacing=UIConfig.ItemListSpacing, expand=True)
+
+        self.controls = [self.expansion_list_view]  # 单独使用 expansion panel list 无法滚动，所以使用 listview 包裹
+        self.padding = UIConfig.ItemListPadding
+        self.spacing = UIConfig.ItemListSpacing
+        self.expand = True
+        self.width = UIConfig.ItemListWidth
+
+    def _parse_ui_items(self, items: list[AccountItem]) -> list[Control]:
+        year_months = self.backend.year_months(items)
+        year_months = sorted(year_months, reverse=True)
+        ui_items = []
+        for year_month in year_months:
+            items_of_year_month = self.backend.select_items(key=BookItemSelectKeys.SpecificMonth, items_list=items, year=year_month[0], month=year_month[1])
+            ui_item = AccountItemExpansionPanel(self.backend, items_of_year_month)
+            ui_item.event_item_clicked.add(self.item_clicked)
+            ui_items.append(ui_item)
+        return ui_items
 
     def update(self):
         super().update()
         for c in self.controls:
+            c.update()
+        for c in self.visible_items_ui:
             c.update()
         print(f"{self.__class__.__name__} updated")
 
@@ -101,7 +163,7 @@ class AccountItemList(ft.ListView):
         
         self.visible_items_ui = self._parse_ui_items(self.visible_items)
 
-        self.controls = self.visible_items_ui
+        self.expansion_list_view.controls = self.visible_items_ui  # 更新 expansion list view 的 controls 而非 listview 的 controls
         self.update()
         self.event_items_filtered.invoke((self, type_list))
     

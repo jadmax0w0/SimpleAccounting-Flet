@@ -518,6 +518,14 @@ class AccountingApp:
     
     def inout_yearly(self, year: int = None, to_info: bool = False):
         return self.addup(key=BookItemSelectKeys.SpecificYear, to_info=to_info, year=year)
+    
+    def year_months(self, items: list[AccountItem] = None):
+        if items is None:
+            return self.current_book.year_months
+        year_months = set()
+        for item in items:
+            year_months.add((item.datetime.year, item.datetime.month))
+        return year_months
 
 
 class AccountingAppJson(json.JSONEncoder):

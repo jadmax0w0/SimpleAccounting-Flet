@@ -41,8 +41,8 @@ class TitleCard(ft.Card):
         self.content.update()
         print(f"{self.__class__.__name__} updated")
 
-    def filtered_monthly_inout(self, sender):
-        ui_item_list, ui_types = sender
+    def filtered_monthly_inout(self, item_list_and_types: tuple[AccountItemList, ItemTypesList]):
+        ui_item_list, ui_types = item_list_and_types
         if not isinstance(ui_item_list, AccountItemList) or not isinstance(ui_types, ItemTypesList):
             return
         types = ""
