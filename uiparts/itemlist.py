@@ -1,6 +1,7 @@
 import flet as ft
 from flet import Control
 from data import *
+from utils import *
 from uiparts.config import UIConfig
 from uiparts.messaging import UIMessage
 
@@ -59,6 +60,7 @@ class AccountItemList(ft.ListView):
         self.event_items_filtered = UIMessage()
         self.event_item_clicked = UIMessage()
 
+        self.selected_types_cache: list[AccountItemType] = []
         self.visible_items: list[Control] = backend.current_items(sort_key=BookItemSortKeys.Time)
         self.visible_items_ui = self._parse_ui_items(self.visible_items)
         self.controls = self.visible_items_ui
@@ -83,12 +85,12 @@ class AccountItemList(ft.ListView):
             c.update()
         print(f"{self.__class__.__name__} updated")
 
-    def filter_items(self, type_list):
-        if not isinstance(type_list, ItemTypesList):
-            return
+    def filter_items(self, type_list: ItemTypesList):
+        if isinstance(type_list, ItemTypesList):
+            self.selected_types_cache = type_list.selected_types
         
         items_of_types = []
-        for t in type_list.selected_types:
+        for t in self.selected_types_cache:
             items_of_types.append(self.backend.current_items(key=BookItemSelectKeys.Type, type=t))
         
         if len(items_of_types) <= 0:

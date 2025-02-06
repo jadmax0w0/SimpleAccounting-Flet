@@ -118,4 +118,5 @@ class AccountingAppUI(ft.Container):
         self.close_item_info_editor(sender)
 
         print(f"New item appended/edited: {sender}")
+        self.main_stack.main_column.items_list.filter_items(None)
         self.update()
