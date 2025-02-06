@@ -5,19 +5,18 @@ class UIConfig:
     # title card
     BookTitleTextSize = 25
 
-    BookTitleTextWeight = ft.FontWeight.W_600
+    BookTitleTextWeight = ft.FontWeight.BOLD  # 600
 
     TitleYearTextSize = 20
     TitleMonthTextSize = 15
-    TitleMonthTextWight = ft.FontWeight.W_500
+    TitleMonthTextWight = ft.FontWeight.BOLD  # 500
     TitleMonthTextWidth = 300
     TitleMonthTextExpand = 3
 
     TitleTypesTextExpand = 4
     TitleInoutTextSize = 15
-    TitleInoutTextWeight = ft.FontWeight.W_600
+    TitleInoutTextWeight = ft.FontWeight.BOLD  # 600
     TitleInoutTextExpand = 2
-
     TitleColumnSpacing = 15
     TitleRowSpacing = 15
 
@@ -27,12 +26,11 @@ class UIConfig:
     
     # item list
     ItemTextSize = 15
-    ItemTextWeight = ft.FontWeight.W_400
+    ItemTextWeight = ft.FontWeight.NORMAL  # 400
     ItemIconWidth = 20
     ItemNameWidth = 150
     ItemTimeWidth = 300
     ItemAmountWidth = 100
-
     ItemListPadding = ft.Padding(30, 0, 30, 0)
     ItemListSpacing = 15
     ItemListWidth = None

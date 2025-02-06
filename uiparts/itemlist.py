@@ -8,7 +8,7 @@ from uiparts.messaging import UIMessage
 from uiparts.typeslist import ItemTypesList
 
 
-class AccountItemRow(ft.MenuItemButton):
+class AccountItemRow(ft.ListTile):
     def __init__(self, backend: AccountingApp, item: AccountItem):
 
         super().__init__()
@@ -18,25 +18,26 @@ class AccountItemRow(ft.MenuItemButton):
         self.event_clicked = UIMessage()
 
         self.type_icon = AccountItemRow._item_text(value=item.type.icon, width=UIConfig.ItemIconWidth)
-        self.title = AccountItemRow._item_text(value=item.name, width=UIConfig.ItemNameWidth)
+        self.title = AccountItemRow._item_text(value=item.name, weight=ft.FontWeight.BOLD, expand=True)
         self.time = AccountItemRow._item_text(value=item.datetime_info(), width=UIConfig.ItemTimeWidth)
         self.amount = AccountItemRow._item_text(
             value=item.amount_info, width=UIConfig.ItemAmountWidth, align=ft.TextAlign.RIGHT, 
-            color=(ft.Colors.GREEN if item.amount >= 0 else ft.Colors.RED)
+            color=(ft.Colors.GREEN if item.amount >= 0 else ft.Colors.RED),
+            weight=ft.FontWeight.BOLD,
         )
         self.content_row = ft.Row(controls=[self.type_icon, self.title, self.time, self.amount], vertical_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
 
-        self.content = self.content_row
+        self.title = self.content_row
         self.expand = True
         self.on_click = self.clicked
 
     @staticmethod
-    def _item_text(value: str, width: int = None, expand: bool = None, align = ft.TextAlign.CENTER, color: ft.Colors = None):
+    def _item_text(value: str, weight: ft.FontWeight = UIConfig.ItemTextWeight, width: int = None, expand: bool = None, align = ft.TextAlign.CENTER, color: ft.Colors = None):
         return ft.Text(
             value=value,
             width=width,
             size=UIConfig.ItemTextSize,
-            weight=UIConfig.ItemTextWeight,
+            weight=weight,
             text_align=align,
             overflow=ft.TextOverflow.FADE,
             color=color,
@@ -77,7 +78,6 @@ class AccountItemList(ft.ListView):
             ui_item.event_clicked.add(self.item_clicked)
             ui_items.append(ui_item)
         return ui_items
-
 
     def update(self):
         super().update()
