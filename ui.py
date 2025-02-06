@@ -91,9 +91,10 @@ class AccountingAppUI(ft.Container):
         self.main_stack.main_column.empty_items_hint.event_create_clicked.add(self.open_item_info_editor)
         self.main_stack.bottom_bar.row_content.create_item_button.event_clicked.add(self.open_item_info_editor)
         self.main_stack.main_column.items_list.event_item_clicked.add(self.open_item_info_editor)
-        # 点击账目编辑页面中的确认/取消按钮时
+        # 点击账目编辑页面中的确认/取消/删除按钮时
         self.item_info_editor.editor_container.item_editor.event_confirm.add(self.append_or_edit_item)
         self.item_info_editor.editor_container.item_editor.event_cancel.add(self.close_item_info_editor)
+        self.item_info_editor.editor_container.item_editor.event_delete.add(self.delete_item)
 
         self.content = self.main_stack
         self.expand = True
@@ -109,15 +110,26 @@ class AccountingAppUI(ft.Container):
 
     def close_item_info_editor(self, sender):
         self.page.close(self.item_info_editor)
+
+    def _items_updated(self):
+        self.main_stack.main_column.items_list.filter_items(None)
+        self.main_stack.main_column.title_card.filtered_monthly_inout((self.main_stack.main_column.items_list, self.main_stack.bottom_bar.row_content.item_types))
+        self.main_stack.main_column.items_updated(None)
+        self.update()
     
     def append_or_edit_item(self, sender):
         if sender["item"] is None:
+
             self.backend.append_item(sender["type"], sender["name"], sender["amount"], sender["date"])
         else:
             self.backend.edit_item(sender["item"], sender["type"], sender["name"], sender["amount"], sender["date"])
         self.close_item_info_editor(sender)
 
         print(f"New item appended/edited: {sender}")
-        self.main_stack.main_column.items_list.filter_items(None)
-        self.main_stack.main_column.title_card.filtered_monthly_inout((self.main_stack.main_column.items_list, self.main_stack.bottom_bar.row_content.item_types))
-        self.update()
+        self._items_updated()
+
+    def delete_item(self, item: AccountItem):
+        self.backend.delete_item(item)
+        self.close_item_info_editor(None)
+        print(f"Item deleted: {item}")
+        self._items_updated()

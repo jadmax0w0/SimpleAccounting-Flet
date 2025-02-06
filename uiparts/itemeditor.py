@@ -12,6 +12,7 @@ class ItemInfoEditor(ft.Column):
         self.item = None
         self.selected_date = datetime.now()
 
+        self.event_delete = UIMessage()
         self.event_confirm = UIMessage()
         self.event_cancel = UIMessage()
 
@@ -28,6 +29,7 @@ class ItemInfoEditor(ft.Column):
         )
         self.selected_date_text = ft.Text(datetime.now().strftime("%Y-%m-%d %H:%M"))
         self.date_button = ft.ElevatedButton(text="选择日期", on_click=self.pick_date, height=45)
+        self.delete_button = ft.ElevatedButton(text="删除", width=100, height=50, bgcolor=ft.colors.RED, color=ft.colors.WHITE, on_click=self.on_delete)
         self.confirm_button = ft.ElevatedButton(text="确定", width=100, height=50, on_click=self.on_confirm)
         self.cancel_button = ft.ElevatedButton(text="取消", width=100, height=50, on_click=self.on_cancel)
 
@@ -39,7 +41,20 @@ class ItemInfoEditor(ft.Column):
                 self.income_expense
             ], alignment=ft.MainAxisAlignment.START),
             ft.Row([self.date_button, self.selected_date_text]),
-            ft.Row([self.cancel_button, self.confirm_button], alignment=ft.MainAxisAlignment.END)
+            ft.Row(
+                [
+                    ft.Container(content=self.delete_button, alignment=ft.alignment.center_left),
+                    ft.Container(
+                        content=ft.Row(
+                            [self.cancel_button, self.confirm_button],
+                            alignment=ft.MainAxisAlignment.END
+                        ),
+                        alignment=ft.alignment.center_right,
+                        expand=True
+                    )
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            ),
         ]
         self.expand = True
 
@@ -71,6 +86,7 @@ class ItemInfoEditor(ft.Column):
                 self.income_expense.selected = {"in"} if item.amount > 0 else {"out"}
                 self.selected_date = item.datetime
                 self.selected_date_text.value = self.selected_date.strftime("%Y-%m-%d")
+                self.delete_button.visible = True
             else:
                 # self.type_select.value = None
                 self.name_input.value = ""
@@ -78,12 +94,31 @@ class ItemInfoEditor(ft.Column):
                 self.income_expense.selected = {"out"}
                 self.selected_date = datetime.now()
                 self.selected_date_text.value = datetime.now().strftime("%Y-%m-%d")
+                self.delete_button.visible = False
 
         set_item(item)
         self.update()
 
+    def on_delete(self, sender):
+        def confirm_delete(e):
+            if e.control.data == "yes":
+                self.event_delete.invoke(self.item)
+            self.page.close(confirmation)
+
+        confirmation = ft.AlertDialog(
+            title=ft.Text("确认删除"),
+            content=ft.Text("确定要删除这条账目吗？"),
+            actions=[
+                ft.TextButton("取消", data="no", on_click=confirm_delete),
+                ft.TextButton("确定", data="yes", on_click=confirm_delete),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.open(confirmation)
+
     def on_confirm(self, sender):
         # 首先检测信息是否填写完整
+
         if self.type_select.value is None or len(self.type_select.value) == 0:
             print("Warning: type not selected")
             return

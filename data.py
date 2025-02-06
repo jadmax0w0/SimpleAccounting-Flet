@@ -155,7 +155,6 @@ class Book:
 
     def delete_item(self, item: AccountItem):
         if not isinstance(item, AccountItem) or item not in self.items:
-
             return
         if item not in self.items:
             print(f"Warning: attempting to delete an item ({item}) not existing in {self}; omit")
